@@ -1,0 +1,158 @@
+
+<style>
+  :root { --chat-height: 420px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  #app { display: flex; flex-direction: column; height: var(--chat-height); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); }
+  #header { padding: 12px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; background: var(--color-background-secondary); }
+  #avatar { width: 32px; height: 32px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #3C3489; flex-shrink: 0; }
+  #header-info p:first-child { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+  #header-info p:last-child { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; display: inline-block; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 75%; display: flex; flex-direction: column; gap: 3px; }
+  .msg.bot { align-self: flex-start; }
+  .msg.user { align-self: flex-end; }
+  .bubble { padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
+  .bot .bubble { background: var(--color-background-secondary); color: var(--color-text-primary); border-bottom-left-radius: 4px; border: 0.5px solid var(--color-border-tertiary); }
+  .user .bubble { background: #534AB7; color: #fff; border-bottom-right-radius: 4px; }
+  .msg-label { font-size: 11px; color: var(--color-text-secondary); padding: 0 4px; }
+  .bot .msg-label { text-align: left; }
+  .user .msg-label { text-align: right; }
+  #typing { display: none; align-self: flex-start; }
+  #typing .bubble { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+  .dot-anim { width: 7px; height: 7px; border-radius: 50%; background: var(--color-text-secondary); animation: bounce 1.2s infinite; }
+  .dot-anim:nth-child(2) { animation-delay: 0.2s; }
+  .dot-anim:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{ transform:translateY(0) } 30%{ transform:translateY(-5px) } }
+  #input-area { padding: 10px 12px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 8px; align-items: center; background: var(--color-background-primary); }
+  #input-area input { flex: 1; font-size: 14px; padding: 8px 12px; border-radius: 20px; }
+  #send-btn { width: 36px; height: 36px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; transition: background 0.15s, transform 0.1s; }
+  #send-btn:hover { background: #3C3489; }
+  #send-btn:active { transform: scale(0.93); }
+  #chips { padding: 0 12px 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 12px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-secondary); cursor: pointer; transition: background 0.1s, color 0.1s; white-space: nowrap; }
+  .chip:hover { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+  #tag { font-size: 11px; color: var(--color-text-secondary); padding: 6px 16px 0; font-style: italic; }
+</style>
+
+<h2 class="sr-only">Rule-based chatbot demonstrating pattern matching and conversation flow</h2>
+<div id="app">
+  <div id="header">
+    <div id="avatar"><i class="ti ti-robot" aria-hidden="true"></i></div>
+    <div id="header-info">
+      <p>RuleBot</p>
+      <p><span class="dot"></span> Online · rule-based NLP</p>
+    </div>
+  </div>
+  <div id="tag">💡 Try the suggestions below or type your own</div>
+  <div id="chips">
+    <span class="chip" onclick="sendChip(this)">Hello!</span>
+    <span class="chip" onclick="sendChip(this)">What's your name?</span>
+    <span class="chip" onclick="sendChip(this)">Tell me a joke</span>
+    <span class="chip" onclick="sendChip(this)">What can you do?</span>
+    <span class="chip" onclick="sendChip(this)">What time is it?</span>
+    <span class="chip" onclick="sendChip(this)">How are you?</span>
+    <span class="chip" onclick="sendChip(this)">Bye!</span>
+  </div>
+  <div id="messages">
+    <div class="msg bot">
+      <span class="msg-label">RuleBot</span>
+      <div class="bubble">Hey there! 👋 I'm RuleBot, a chatbot powered by <strong>rule-based pattern matching</strong>. I respond to keywords and patterns — no AI magic here! Ask me anything or pick a suggestion above.</div>
+    </div>
+  </div>
+  <div id="typing" class="msg bot">
+    <span class="msg-label">RuleBot</span>
+    <div class="bubble"><span class="dot-anim"></span><span class="dot-anim"></span><span class="dot-anim"></span></div>
+  </div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="Type a message…" autocomplete="off" />
+    <button id="send-btn" onclick="handleSend()" aria-label="Send message"><i class="ti ti-send" style="font-size:16px;"></i></button>
+  </div>
+</div>
+
+<script>
+const rules = [
+  { patterns: [/\b(hi|hello|hey|howdy|greetings|sup|yo)\b/i], responses: ["Hello! How can I help you today?", "Hey there! What's on your mind?", "Hi! Nice to meet you. What can I do for you?"] },
+  { patterns: [/\b(how are you|how('re| are) you doing|how do you feel|you ok\b)/i], responses: ["I'm doing great, thanks for asking! I'm a bot so I always feel 'on'. 😄", "Running perfectly! All my rules are intact. How about you?"] },
+  { patterns: [/\b(your name|who are you|what are you|introduce yourself)\b/i], responses: ["I'm RuleBot — a chatbot built with if-else logic and pattern matching instead of AI! Simple but effective.", "Name's RuleBot. I work by matching your messages against predefined rules — classic NLP 101!"] },
+  { patterns: [/\b(what can you do|your (abilities|features|skills)|help me|capabilities)\b/i], responses: ["I can: answer greetings, tell jokes, share the time, chat about how I work, and respond to goodbyes! I use regex pattern matching to understand you."] },
+  { patterns: [/\b(joke|funny|make me laugh|humor|something funny)\b/i], responses: ["Why don't scientists trust atoms? Because they make up everything! 😂", "I told my computer I needed a break. Now it won't stop sending me Kit-Kat ads. 🍫", "Why did the programmer quit? Because they didn't get arrays! 😄"] },
+  { patterns: [/\b(time|what time|current time|clock)\b/i], responses: [() => `It's currently ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} on your device. ⏰`] },
+  { patterns: [/\b(date|today|what day|current date|day is it)\b/i], responses: [() => `Today is ${new Date().toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'})}. 📅`] },
+  { patterns: [/\b(weather|temperature|forecast)\b/i], responses: ["I can't check the weather — I'm rule-based and offline! Try a weather app for that. ☀️🌧️"] },
+  { patterns: [/\b(bye|goodbye|see you|cya|later|farewell|take care)\b/i], responses: ["Goodbye! It was nice chatting! 👋", "See you later! Come back if you want to chat more. 😊", "Bye! Have a wonderful day! 🌟"] },
+  { patterns: [/\b(thank(s| you)|thx|ty|appreciate)\b/i], responses: ["You're welcome! 😊", "Happy to help!", "Anytime! That's what I'm here for."] },
+  { patterns: [/\b(who made you|creator|built you|created you|developer)\b/i], responses: ["I was built to demonstrate rule-based NLP! A developer wrote rules using regex pattern matching — no machine learning involved."] },
+  { patterns: [/\b(how (do you|does it) work|pattern matching|rule.based|nlp|natural language)\b/i], responses: ["Great question! I work by matching your text against regex patterns. Each rule has patterns + responses. If your message matches a pattern, I pick a random matching response. It's the foundation of early chatbots like ELIZA!"] },
+  { patterns: [/\b(eliza|early chatbot|first chatbot|history)\b/i], responses: ["ELIZA (1966) was one of the first chatbots — also rule-based! It used pattern matching to simulate a therapist. I'm inspired by that same approach. 🤖"] },
+  { patterns: [/\b(age|how old|old are you)\b/i], responses: ["I don't age — I was just born when someone wrote my rules! Conceptually though, rule-based bots are 60+ years old. 👴"] },
+  { patterns: [/\b(smart|intelligent|ai|machine learning|gpt|neural)\b/i], responses: ["I'm NOT AI — I'm purely rule-based! No neural networks here, just good old if-else logic and regex. Much simpler but very transparent!"] },
+  { patterns: [/\b(favorite|like|love|enjoy|hobby)\b/i], responses: ["As a rule-based bot, I don't have feelings or preferences — but I 'love' matching patterns! It's literally all I do. 😄"] },
+  { patterns: [/\?$/, /\b(what|where|when|why|how|who)\b/i], responses: ["That's a question I don't have a specific rule for! My knowledge is limited to my predefined patterns. Try asking something else!", "Hmm, I don't have a rule that matches that question. Remember, I'm just pattern matching — not truly understanding! 🤔"] },
+];
+
+const fallbacks = [
+  "I don't have a rule for that yet! I only understand specific patterns. Try something else?",
+  "No pattern matched! That's the limitation of rule-based systems — I only know what I'm explicitly taught.",
+  "My rules don't cover that. A machine learning bot might handle it better, but I keep it simple! 🤷",
+  "Pattern not found! Remember, I work with if-else logic, not actual understanding.",
+];
+
+function getResponse(text) {
+  for (const rule of rules) {
+    for (const pattern of rule.patterns) {
+      if (pattern.test(text)) {
+        const r = rule.responses[Math.floor(Math.random() * rule.responses.length)];
+        return typeof r === 'function' ? r() : r;
+      }
+    }
+  }
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+}
+
+function addMessage(text, sender) {
+  const msgs = document.getElementById('messages');
+  const typing = document.getElementById('typing');
+  const div = document.createElement('div');
+  div.className = `msg ${sender}`;
+  const label = document.createElement('span');
+  label.className = 'msg-label';
+  label.textContent = sender === 'bot' ? 'RuleBot' : 'You';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  div.appendChild(label);
+  div.appendChild(bubble);
+  msgs.insertBefore(div, typing);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping(show) {
+  const t = document.getElementById('typing');
+  t.style.display = show ? 'flex' : 'none';
+  if (show) document.getElementById('messages').scrollTop = 9999;
+}
+
+function handleSend() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMessage(text, 'user');
+  showTyping(true);
+  const delay = 400 + Math.random() * 500;
+  setTimeout(() => {
+    showTyping(false);
+    addMessage(getResponse(text), 'bot');
+  }, delay);
+}
+
+function sendChip(el) {
+  document.getElementById('user-input').value = el.textContent;
+  handleSend();
+}
+
+document.getElementById('user-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSend();
+});
+</script>
